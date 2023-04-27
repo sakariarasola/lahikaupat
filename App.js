@@ -1,5 +1,5 @@
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import MapView, { Marker, } from 'react-native-maps';
+import MapView, { Marker,} from 'react-native-maps';
 import * as Location from 'expo-location';
 import { useEffect, useState, useRef } from 'react';
 import MapViewDirections from 'react-native-maps-directions';
@@ -65,7 +65,7 @@ export default function App() {
   }
 
   const handleRoutePress = () => {
-    if (!selectedPlace) return;
+    if (!selectedStore) return;
 
     setSelectedStore(null);
   }
@@ -77,17 +77,19 @@ export default function App() {
         region={region}
         onRegionChangeComplete={handleRegionChangeComplete}
       >
+        {selectedStore && location && (
         <MapViewDirections
           origin={{ latitude: location?.coords.latitude, longitude: location?.coords.longitude }}
-          destination={{ latitude: selectedPlace?.geometry.location.lat, longitude: selectedPlace?.geometry.location.lng }}
+          destination={{ latitude: selectedStore?.geometry.location.lat, longitude: selectedStore?.geometry.location.lng }}
           apikey={'AIzaSyAogHCCpAuSxLePGRwr18mXj6iNJwwBdlM'}
         />
+        )}
         {stores.map((store, index) => (
           <Marker
             key={index}
             coordinate={{
-              latitude: place.geometry.location.lat,
-              longitude: place.geometry.location.lng
+              latitude: store.geometry.location.lat,
+              longitude: store.geometry.location.lng
             }}
             title={store.name}
             onPress={() => handleMarkerPress(store)}
