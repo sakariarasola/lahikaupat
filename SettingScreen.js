@@ -5,7 +5,8 @@ export default function SettingScreen() {
     <View style={styles.container}>
       <Text style={styles.text}>Known bugs:{"\n"}
             - Wrong marker information when moving the map{"\n"}
-            - The map doesn't initially fit to coordinates when pressing a marker, only after pressing the transport mode button
+            - The map doesn't initially fit to coordinates when pressing a marker, only after pressing the transport mode button{"\n"}
+            - All stores are not shown on map (API issue?)
       </Text>
     </View>
   );
