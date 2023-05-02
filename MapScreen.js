@@ -6,7 +6,7 @@ import MapViewDirections from 'react-native-maps-directions';
 import { Icon } from '@rneui/themed';
 import { Picker } from '@react-native-picker/picker';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
-import {API_KEY} from '@env';
+import { API_KEY } from '@env';
 
 export default function MapScreen() {
     const [location, setLocation] = useState(null);
@@ -21,6 +21,7 @@ export default function MapScreen() {
     const isRegionChanged = useRef(false);
     const [distance, setDistance] = useState(0);
     const [duration, setDuration] = useState(0);
+    const [mode, setMode] = useState('driving');
 
     const mapRef = useRef(null);
     const [selectedIndex, setSelectedIndex] = useState(0);
@@ -53,7 +54,7 @@ export default function MapScreen() {
             const longitude = region.longitude;
             const radius = 2000; //testiluku
             const type = 'grocery_or_supermarket';
-            const apiKey = API_KEY;
+            const apiKey = process.env.API_KEY;
 
             const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radius}&type=${type}&key=${apiKey}`;
             const response = await fetch(url);
@@ -66,9 +67,9 @@ export default function MapScreen() {
 
 
     const handleRegionChangeComplete = (newRegion) => {
-            isRegionChanged.current = true;
-            setRegion(newRegion);
-        };
+        isRegionChanged.current = true;
+        setRegion(newRegion);
+    };
 
     const handleMarkerPress = (store) => {
         setSelectedStore(store);
@@ -111,6 +112,10 @@ export default function MapScreen() {
             setDistance(args.distance);
             setDuration(args.duration);
         }
+    };
+
+    const handleModeChange = (itemValue, itemIndex) => {
+        setMode(itemValue.toLowerCase());
     };
 
     return (
@@ -181,6 +186,16 @@ export default function MapScreen() {
                     ) : null}
                 </View>
             )}
+            {/*<Picker
+                selectedValue={mode}
+                onValueChange={handleModeChange}
+                style={styles.modePicker}
+            >
+                <Picker.Item label="Driving" value="driving" />
+                <Picker.Item label="Transit" value="transit" />
+                <Picker.Item label="Walking" value="walking" />
+                <Picker.Item label="Bicycling" value="bicycling" />
+                    </Picker>*/}
         </View>
     );
 }
@@ -214,4 +229,14 @@ const styles = StyleSheet.create({
         color: 'turquoise',
         fontWeight: 'bold',
     },
+    modePicker: {
+        position: 'absolute',
+        top: 25,
+        left: 10,
+        width: 150,
+        height: 40,
+        backgroundColor: 'white',
+        borderRadius: 5,
+        zIndex: 1,
+      },
 });
