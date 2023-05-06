@@ -52,7 +52,7 @@ export default function MapScreen({ isDarkTheme }) {
 
         const latitude = region.latitude;
         const longitude = region.longitude;
-        const radius = 2000; //testiluku
+        const radius = 2000;
         const type = 'grocery_or_supermarket';
         const apiKey = process.env.API_KEY;
 
