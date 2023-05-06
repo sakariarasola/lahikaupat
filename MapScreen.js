@@ -1,14 +1,15 @@
-import { Alert, StyleSheet, Text, TouchableOpacity, View, Modal, } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View, } from 'react-native';
 import MapView, { Marker, } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, } from 'react';
 import MapViewDirections from 'react-native-maps-directions';
 import { Icon } from '@rneui/themed';
 import { Picker } from '@react-native-picker/picker';
 import SegmentedControl from '@react-native-segmented-control/segmented-control';
+import _ from 'lodash';
 import { API_KEY } from '@env';
 
-export default function MapScreen() {
+export default function MapScreen({ isDarkTheme }) {
     const [location, setLocation] = useState(null);
     const [region, setRegion] = useState({
         latitude: 60.1713252,
@@ -21,10 +22,10 @@ export default function MapScreen() {
     const isRegionChanged = useRef(false);
     const [distance, setDistance] = useState(0);
     const [duration, setDuration] = useState(0);
-    const [mode, setMode] = useState('driving');
-
+    const [mode, setMode] = useState('DRIVING');
     const mapRef = useRef(null);
     const [selectedIndex, setSelectedIndex] = useState(0);
+    const [selectedStoreDetails, setSelectedStoreDetails] = useState(null);
 
     useEffect(() => {
         async function getLocation() {
@@ -46,36 +47,60 @@ export default function MapScreen() {
         getLocation();
     }, []);
 
+    const fetchNearbyStores = useCallback(_.debounce(async () => {
+        if (!location || !isRegionChanged.current) return;
+
+        const latitude = region.latitude;
+        const longitude = region.longitude;
+        const radius = 2000; //testiluku
+        const type = 'grocery_or_supermarket';
+        const apiKey = process.env.API_KEY;
+
+        const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radius}&type=${type}&mode=${mode}&key=${apiKey}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        setStores(data.results);
+    }, 1000), [location, isRegionChanged.current, region.latitude, region.longitude, mode]);
+
     useEffect(() => {
-        async function fetchNearbyStores() {
-            if (!location || !isRegionChanged.current) return;
-
-            const latitude = region.latitude;
-            const longitude = region.longitude;
-            const radius = 2000; //testiluku
-            const type = 'grocery_or_supermarket';
-            const apiKey = process.env.API_KEY;
-
-            const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${latitude},${longitude}&radius=${radius}&type=${type}&key=${apiKey}`;
-            const response = await fetch(url);
-            const data = await response.json();
-            setStores(data.results);
-        }
-
         fetchNearbyStores();
-    }, [region]);
+
+        return () => {
+            fetchNearbyStores.cancel();
+        };
+    }, [fetchNearbyStores]);
 
 
-    const handleRegionChangeComplete = (newRegion) => {
+
+    const handleRegionChangeComplete = useCallback((newRegion) => {
         isRegionChanged.current = true;
         setRegion(newRegion);
-    };
+    }, []);
 
-    const handleMarkerPress = (store) => {
+    const handleMarkerPress = useCallback(async (store) => {
         setSelectedStore(store);
-    };
+        try {
+            const response = await fetch(`https://maps.googleapis.com/maps/api/place/details/json?place_id=${store.place_id}&fields=opening_hours&key=${API_KEY}`);
+            const data = await response.json();
+            if (data.result) {
+                if (data.result.opening_hours) {
+                    console.log(store.name, data.result.opening_hours.open_now);
+                } else {
+                    console.warn('No opening hours available for:', store.name);
+                }
+                setSelectedStoreDetails(data.result);
+            } else {
+                console.warn('No results found for:', store.name);
+            }
+        } catch (error) {
+            console.log(error);
+        }
+    }, []);
 
-    const handleTransportPress = useCallback(() => {
+
+
+
+    const handleRoutePress = useCallback(() => {
         if (!selectedStore || !location) return;
 
         const origin = {
@@ -99,24 +124,26 @@ export default function MapScreen() {
         };
 
         mapRef.current.fitToCoordinates(coordinates, options);
-    });
+    }, [location, selectedStore, mapRef]);
 
-    const clearRouteSelection = () => {
+    const clearRouteSelection = useCallback(() => {
         if (!selectedStore) return;
-
         setSelectedStore(null);
-    }
+    }, [selectedStore]);
 
-    const traceRouteOnReady = (args) => {
+    const traceRouteOnReady = useCallback((args) => {
         if (args) {
             setDistance(args.distance);
             setDuration(args.duration);
         }
+    }, []);
+
+    const handleModeChange = (modeName) => {
+        if (typeof modeName === 'string') {
+            setMode(modeName.toUpperCase());
+        }
     };
 
-    const handleModeChange = (itemValue, itemIndex) => {
-        setMode(itemValue.toLowerCase());
-    };
 
     return (
         <View style={styles.container}>
@@ -133,15 +160,18 @@ export default function MapScreen() {
                 onRegionChangeComplete={handleRegionChangeComplete}
                 onPress={clearRouteSelection}
                 ref={mapRef}
+
             >
+
                 {selectedStore && location && (
                     <MapViewDirections
                         origin={{ latitude: location?.coords.latitude, longitude: location?.coords.longitude }}
-                        destination={{ latitude: selectedStore?.geometry.location.lat, longitude: selectedStore?.geometry.location.lng }}
+                        destination={{ latitude: selectedStore?.geometry?.location?.lat, longitude: selectedStore?.geometry?.location?.lng }}
                         apikey={API_KEY}
                         strokeColor='blue'
                         strokeWidth={5}
                         onReady={traceRouteOnReady}
+                        mode={mode}
                     />
                 )}
                 {location && (
@@ -150,10 +180,10 @@ export default function MapScreen() {
                             latitude: location.coords.latitude,
                             longitude: location.coords.longitude,
                         }}
-                        title="Your location"
+                        title="You are here"
                     >
                         <Icon
-                            name="person-circle" type='ionicon' color="turquoise"
+                            name="person" type='ionicon' color="purple"
                         />
                     </Marker>
                 )}
@@ -165,7 +195,7 @@ export default function MapScreen() {
                             longitude: store.geometry.location.lng,
                         }}
                         title={store.name}
-                        //description={store.current_opening_hours?.isOpenNow ? 'Open' : 'Closed'}
+                        description={selectedStoreDetails && selectedStoreDetails.opening_hours && selectedStoreDetails.opening_hours.open_now ? 'Open' : 'Closed'}
                         onPress={() => handleMarkerPress(store)}
                         pinColor='turquoise'
                     />
@@ -175,8 +205,8 @@ export default function MapScreen() {
             {selectedStore && (
                 <View style={styles.directionsContainer}>
                     <Text style={styles.directionsText}>Route to this store: {selectedStore.name}</Text>
-                    <TouchableOpacity style={styles.directionsButton} onPress={handleTransportPress}>
-                        <Text style={styles.directionsButtonText}>Choose your transport mode </Text>
+                    <TouchableOpacity style={styles.directionsButton} onPress={handleRoutePress}>
+                        <Text style={styles.directionsButtonText}>Show route</Text>
                     </TouchableOpacity>
                     {distance && duration ? (
                         <View>
@@ -186,16 +216,17 @@ export default function MapScreen() {
                     ) : null}
                 </View>
             )}
-            {/*<Picker
+            <Picker
                 selectedValue={mode}
                 onValueChange={handleModeChange}
-                style={styles.modePicker}
+                style={styles.modeSelection}
+                dropdownIconColor={'black'}
             >
-                <Picker.Item label="Driving" value="driving" />
-                <Picker.Item label="Transit" value="transit" />
-                <Picker.Item label="Walking" value="walking" />
-                <Picker.Item label="Bicycling" value="bicycling" />
-                    </Picker>*/}
+                <Picker.Item label="Driving" value="DRIVING" />
+                {/*<Picker.Item label="Transit" value="TRANSIT" />*/}
+                <Picker.Item label="Walking" value="WALKING" />
+                <Picker.Item label="Bicycling" value="BICYCLING" />
+            </Picker>
         </View>
     );
 }
@@ -203,7 +234,7 @@ export default function MapScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: 'white',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -229,14 +260,14 @@ const styles = StyleSheet.create({
         color: 'turquoise',
         fontWeight: 'bold',
     },
-    modePicker: {
-        position: 'absolute',
+    modeSelection: {
+        width: "50%",
+        position: "absolute",
         top: 25,
-        left: 10,
-        width: 150,
-        height: 40,
-        backgroundColor: 'white',
-        borderRadius: 5,
         zIndex: 1,
-      },
+        backgroundColor: 'turquoise',
+        opacity: 0.75,
+        color: 'black',
+        borderRadius: 5,
+    },
 });
