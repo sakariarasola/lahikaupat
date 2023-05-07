@@ -147,13 +147,13 @@ export default function MapScreen({ isDarkTheme }) {
 
     return (
         <View style={styles.container}>
-            <SegmentedControl
+           {/* <SegmentedControl
                 values={['Store', 'Location']}
                 selectedIndex={selectedIndex}
                 onChange={(event) => {
                     setSelectedIndex(event.nativeEvent.selectedSegmentIndex);
                 }}
-            />
+            />*/}
             <MapView
                 style={{ width: '100%', height: '100%' }}
                 region={region}
